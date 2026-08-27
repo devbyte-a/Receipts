@@ -33,11 +33,25 @@
             argumentCount: 0,
             arguments: []
         },
-        actionSheetMessageContext: null
+        actionSheetMessageContext: null,
+        actionSheetStructure: {
+            argument0Type: "undefined",
+            argument0Keys: [],
+            argument1Type: "undefined",
+            argument1Value: null,
+            argument0CallableKeys: [],
+            argument0HasComponentLikeObject: false,
+            argument2Keys: [],
+            messageReferenceStable: null,
+            channelReferenceStable: null,
+            called: false
+        }
     };
     let actionSheetLoader;
     let originalOpenLazy;
     let wrappedOpenLazy;
+    let previousActionSheetMessage;
+    let previousActionSheetChannel;
 
     function log(message, error) {
         if (error) console.error("[Message Edit History] " + message, error);
@@ -299,7 +313,6 @@
         return Object.keys(value).some(function(key) {
             const descriptor = Object.getOwnPropertyDescriptor(value, key);
             const child = descriptor && Object.prototype.hasOwnProperty.call(descriptor, "value") ? descriptor.value : null;
-            if (typeof child === "function") return true;
             if (!child || typeof child !== "object") return false;
             const render = Object.getOwnPropertyDescriptor(child, "render");
             const type = Object.getOwnPropertyDescriptor(child, "type");
@@ -343,6 +356,35 @@
         return context;
     }
 
+    function inspectActionSheetStructure(argumentsObject) {
+        const first = argumentsObject[0];
+        const second = argumentsObject[1];
+        const third = argumentsObject[2];
+        const firstIsObject = first !== null && (typeof first === "object" || typeof first === "function");
+        const thirdIsObject = third !== null && typeof third === "object";
+        const firstKeys = firstIsObject ? Object.keys(first).slice(0, 30) : [];
+        const message = thirdIsObject ? third.message : null;
+        const channel = thirdIsObject ? third.channel : null;
+        const structure = {
+            argument0Type: typeof first,
+            argument0Keys: firstKeys,
+            argument1Type: typeof second,
+            argument1Value: typeof second === "string" ? second : null,
+            argument0CallableKeys: firstIsObject ? firstKeys.filter(function(key) {
+                const descriptor = Object.getOwnPropertyDescriptor(first, key);
+                return !!(descriptor && Object.prototype.hasOwnProperty.call(descriptor, "value") && typeof descriptor.value === "function");
+            }) : [],
+            argument0HasComponentLikeObject: firstIsObject && hasComponentLikeObject(first),
+            argument2Keys: thirdIsObject ? Object.keys(third).slice(0, 30) : [],
+            messageReferenceStable: previousActionSheetMessage === undefined || !message ? null : previousActionSheetMessage === message,
+            channelReferenceStable: previousActionSheetChannel === undefined || !channel ? null : previousActionSheetChannel === channel,
+            called: true
+        };
+        previousActionSheetMessage = message;
+        previousActionSheetChannel = channel;
+        return structure;
+    }
+
     function installActionSheetWrapper() {
         try {
             actionSheetLoader = metro && typeof metro.findByProps === "function" ? metro.findByProps("openLazy") : null;
@@ -354,7 +396,10 @@
             }
             wrappedOpenLazy = function() {
                 if (arguments.length === 3) {
-                    try { debugState.actionSheetMessageContext = inspectActionSheetMessageContext(arguments[2]); }
+                    try {
+                        debugState.actionSheetStructure = inspectActionSheetStructure(arguments);
+                        debugState.actionSheetMessageContext = inspectActionSheetMessageContext(arguments[2]);
+                    }
                     catch (error) { log("Could not inspect openLazy message context", error); }
                 }
                 try {
@@ -421,6 +466,18 @@
                         messageHasComponentLikeObject: debugState.actionSheetMessageContext.messageHasComponentLikeObject,
                         channelHasComponentLikeObject: debugState.actionSheetMessageContext.channelHasComponentLikeObject
                     } : null,
+                    actionSheetStructure: {
+                        argument0Type: debugState.actionSheetStructure.argument0Type,
+                        argument0Keys: debugState.actionSheetStructure.argument0Keys.slice(),
+                        argument1Type: debugState.actionSheetStructure.argument1Type,
+                        argument1Value: debugState.actionSheetStructure.argument1Value,
+                        argument0CallableKeys: debugState.actionSheetStructure.argument0CallableKeys.slice(),
+                        argument0HasComponentLikeObject: debugState.actionSheetStructure.argument0HasComponentLikeObject,
+                        argument2Keys: debugState.actionSheetStructure.argument2Keys.slice(),
+                        messageReferenceStable: debugState.actionSheetStructure.messageReferenceStable,
+                        channelReferenceStable: debugState.actionSheetStructure.channelReferenceStable,
+                        called: debugState.actionSheetStructure.called
+                    },
                     getLastInteraction: getLastInteraction,
                     inspectProps: inspectProps,
                     inspectMountedMessage: inspectMountedMessage
@@ -484,6 +541,20 @@
             arguments: []
         };
         debugState.actionSheetMessageContext = null;
+        debugState.actionSheetStructure = {
+            argument0Type: "undefined",
+            argument0Keys: [],
+            argument1Type: "undefined",
+            argument1Value: null,
+            argument0CallableKeys: [],
+            argument0HasComponentLikeObject: false,
+            argument2Keys: [],
+            messageReferenceStable: null,
+            channelReferenceStable: null,
+            called: false
+        };
+        previousActionSheetMessage = undefined;
+        previousActionSheetChannel = undefined;
         try {
             if (typeof globalThis !== "undefined") delete globalThis.__MessageEditHistoryDebug;
         } catch (error) { log("Could not reset debug state", error); }
