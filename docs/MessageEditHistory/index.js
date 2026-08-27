@@ -299,29 +299,48 @@
         return Object.keys(value).some(function(key) {
             const descriptor = Object.getOwnPropertyDescriptor(value, key);
             const child = descriptor && Object.prototype.hasOwnProperty.call(descriptor, "value") ? descriptor.value : null;
-            return typeof child === "function" || !!(child && typeof child === "object" && (typeof child.render === "function" || typeof child.type === "function"));
+            if (typeof child === "function") return true;
+            if (!child || typeof child !== "object") return false;
+            const render = Object.getOwnPropertyDescriptor(child, "render");
+            const type = Object.getOwnPropertyDescriptor(child, "type");
+            return !!((render && typeof render.value === "function") || (type && typeof type.value === "function"));
         });
     }
 
     function inspectActionSheetMessageContext(argument) {
-        if (!argument || typeof argument !== "object") return null;
-        const message = argument.message || {};
-        const channel = argument.channel || {};
-        const chatInputRef = argument.chatInputRef;
-        const chatInputRefIsObject = chatInputRef !== null && (typeof chatInputRef === "object" || typeof chatInputRef === "function");
-        const chatInputRefKeys = chatInputRefIsObject ? Object.keys(chatInputRef).slice(0, 30) : [];
-        return {
-            messageKeys: Object.keys(message).slice(0, 30),
-            channelKeys: Object.keys(channel).slice(0, 30),
-            chatInputRefType: typeof chatInputRef,
-            chatInputRefKeys: chatInputRefKeys,
-            chatInputRefCallableKeys: chatInputRefIsObject ? chatInputRefKeys.filter(function(key) {
-                const descriptor = Object.getOwnPropertyDescriptor(chatInputRef, key);
-                return !!(descriptor && Object.prototype.hasOwnProperty.call(descriptor, "value") && typeof descriptor.value === "function");
-            }) : [],
-            messageHasComponentLikeObject: hasComponentLikeObject(message),
-            channelHasComponentLikeObject: hasComponentLikeObject(channel)
+        const context = {
+            messageKeys: [],
+            channelKeys: [],
+            chatInputRefType: "undefined",
+            chatInputRefKeys: [],
+            chatInputRefCallableKeys: [],
+            messageHasComponentLikeObject: false,
+            channelHasComponentLikeObject: false
         };
+        if (!argument || typeof argument !== "object") return context;
+        try {
+            const message = argument.message || {};
+            context.messageKeys = Object.keys(message).slice(0, 30);
+            context.messageHasComponentLikeObject = hasComponentLikeObject(message);
+        } catch (error) { log("Could not inspect openLazy message keys", error); }
+        try {
+            const channel = argument.channel || {};
+            context.channelKeys = Object.keys(channel).slice(0, 30);
+            context.channelHasComponentLikeObject = hasComponentLikeObject(channel);
+        } catch (error) { log("Could not inspect openLazy channel keys", error); }
+        try {
+            const chatInputRef = argument.chatInputRef;
+            context.chatInputRefType = typeof chatInputRef;
+            const isObject = chatInputRef !== null && (typeof chatInputRef === "object" || typeof chatInputRef === "function");
+            if (isObject) {
+                context.chatInputRefKeys = Object.keys(chatInputRef).slice(0, 30);
+                context.chatInputRefCallableKeys = context.chatInputRefKeys.filter(function(key) {
+                    const descriptor = Object.getOwnPropertyDescriptor(chatInputRef, key);
+                    return !!(descriptor && Object.prototype.hasOwnProperty.call(descriptor, "value") && typeof descriptor.value === "function");
+                });
+            }
+        } catch (error) { log("Could not inspect openLazy chat input ref", error); }
+        return context;
     }
 
     function installActionSheetWrapper() {
