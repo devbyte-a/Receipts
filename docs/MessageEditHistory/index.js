@@ -284,8 +284,10 @@
         return {
             type: type,
             keys: keys,
+            messageKeys: message ? Object.keys(message).slice(0, 30) : [],
             messageIdPresent: messageIdPresent,
             channelIdPresent: channelIdPresent,
+            messageEvidence: messageIdPresent && channelIdPresent,
             componentLike: type === "function" || !!(argument && typeof argument === "object" && (typeof argument.render === "function" || typeof argument.type === "function")),
             functionKeys: type === "function" ? Object.keys(argument).slice(0, 20) : []
         };
