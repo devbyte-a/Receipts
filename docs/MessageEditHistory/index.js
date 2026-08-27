@@ -498,7 +498,7 @@
         debugState.historyCount = messageCache.size;
         try {
             if (typeof globalThis !== "undefined") {
-                globalThis.__MessageEditHistoryDebug = {
+                const debugObject = {
                     buildMarker: debugState.buildMarker,
                     loaded: debugState.loaded,
                     rendererDiscoverySucceeded: debugState.rendererDiscoverySucceeded,
@@ -551,6 +551,10 @@
                     inspectProps: inspectProps,
                     inspectMountedMessage: inspectMountedMessage
                 };
+                debugObject.messageObjectStructure = debugState.messageObjectStructure;
+                debugObject.messageObjectStructureCalls = debugState.messageObjectStructureCalls;
+                debugObject.messageObjectStructureStatus = debugState.messageObjectStructureStatus;
+                globalThis.__MessageEditHistoryDebug = debugObject;
             }
         } catch (error) { log("Could not expose debug state", error); }
     }
