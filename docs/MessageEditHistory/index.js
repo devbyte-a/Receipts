@@ -38,7 +38,9 @@
         actionSheetStructure: null,
         actionSheetStructureCalls: 0,
         actionSheetStructureStatus: "waiting",
-        messageObjectStructure: null
+        messageObjectStructure: null,
+        messageObjectStructureCalls: 0,
+        messageObjectStructureStatus: "waiting"
     };
     let actionSheetLoader;
     let originalOpenLazy;
@@ -411,8 +413,7 @@
         return descriptor && Object.prototype.hasOwnProperty.call(descriptor, "value") ? descriptor.value : undefined;
     }
 
-    function inspectMessageObjectStructure(argument) {
-        const message = ownDataValue(argument, "message");
+    function inspectMessageObjectStructure(message, argument) {
         const chatInputRef = ownDataValue(argument, "chatInputRef");
         const selectedMedia = ownDataValue(argument, "selectedMedia");
         const user = ownDataValue(argument, "user");
@@ -455,7 +456,12 @@
                         debugState.actionSheetStructureCalls += 1;
                         debugState.actionSheetStructureStatus = "captured";
                         debugState.actionSheetMessageContext = inspectActionSheetMessageContext(arguments[2]);
-                        if (arguments[1] === "MessageLongPressActionSheet") debugState.messageObjectStructure = inspectMessageObjectStructure(arguments[2]);
+                        const message = arguments[2] && arguments[2].message;
+                        if (message) {
+                            debugState.messageObjectStructure = inspectMessageObjectStructure(message, arguments[2]);
+                            debugState.messageObjectStructureCalls += 1;
+                            debugState.messageObjectStructureStatus = "captured";
+                        }
                     }
                     catch (error) { log("Could not inspect openLazy message context", error); }
                 }
@@ -539,6 +545,8 @@
                     actionSheetStructureCalls: debugState.actionSheetStructureCalls,
                     actionSheetStructureStatus: debugState.actionSheetStructureStatus,
                     messageObjectStructure: debugState.messageObjectStructure,
+                    messageObjectStructureCalls: debugState.messageObjectStructureCalls,
+                    messageObjectStructureStatus: debugState.messageObjectStructureStatus,
                     getLastInteraction: getLastInteraction,
                     inspectProps: inspectProps,
                     inspectMountedMessage: inspectMountedMessage
@@ -606,6 +614,8 @@
         debugState.actionSheetStructureCalls = 0;
         debugState.actionSheetStructureStatus = "waiting";
         debugState.messageObjectStructure = null;
+        debugState.messageObjectStructureCalls = 0;
+        debugState.messageObjectStructureStatus = "waiting";
         previousActionSheetMessage = undefined;
         previousActionSheetChannel = undefined;
         try {
