@@ -32,7 +32,8 @@
             called: false,
             argumentCount: 0,
             arguments: []
-        }
+        },
+        actionSheetMessageContext: null
     };
     let actionSheetLoader;
     let originalOpenLazy;
@@ -293,6 +294,32 @@
         };
     }
 
+    function hasComponentLikeObject(value) {
+        if (!value || typeof value !== "object") return false;
+        return Object.keys(value).some(function(key) {
+            const child = value[key];
+            return typeof child === "function" || !!(child && typeof child === "object" && (typeof child.render === "function" || typeof child.type === "function"));
+        });
+    }
+
+    function inspectActionSheetMessageContext(argument) {
+        if (!argument || typeof argument !== "object") return null;
+        const message = argument.message && typeof argument.message === "object" ? argument.message : null;
+        const channel = argument.channel && typeof argument.channel === "object" ? argument.channel : null;
+        const chatInputRef = argument.chatInputRef;
+        const chatInputRefIsObject = chatInputRef !== null && (typeof chatInputRef === "object" || typeof chatInputRef === "function");
+        const chatInputRefKeys = chatInputRefIsObject ? Object.keys(chatInputRef).slice(0, 30) : [];
+        return {
+            messageKeys: message ? Object.keys(message).slice(0, 30) : [],
+            channelKeys: channel ? Object.keys(channel).slice(0, 30) : [],
+            chatInputRefType: typeof chatInputRef,
+            chatInputRefKeys: chatInputRefKeys,
+            chatInputRefCallableKeys: chatInputRefIsObject ? chatInputRefKeys.filter(function(key) { return typeof chatInputRef[key] === "function"; }) : [],
+            messageHasComponentLikeObject: hasComponentLikeObject(message),
+            channelHasComponentLikeObject: hasComponentLikeObject(channel)
+        };
+    }
+
     function installActionSheetWrapper() {
         try {
             actionSheetLoader = metro && typeof metro.findByProps === "function" ? metro.findByProps("openLazy") : null;
@@ -309,6 +336,7 @@
                         argumentCount: arguments.length,
                         arguments: Array.prototype.slice.call(arguments).map(inspectInvocationArgument)
                     };
+                    debugState.actionSheetMessageContext = inspectActionSheetMessageContext(arguments[2]);
                     exposeDebug();
                 } catch (error) { log("Could not inspect openLazy invocation", error); }
                 return originalOpenLazy.apply(this, arguments);
@@ -358,6 +386,15 @@
                         argumentCount: debugState.actionSheetInvocation.argumentCount,
                         arguments: debugState.actionSheetInvocation.arguments.slice()
                     },
+                    actionSheetMessageContext: debugState.actionSheetMessageContext ? {
+                        messageKeys: debugState.actionSheetMessageContext.messageKeys.slice(),
+                        channelKeys: debugState.actionSheetMessageContext.channelKeys.slice(),
+                        chatInputRefType: debugState.actionSheetMessageContext.chatInputRefType,
+                        chatInputRefKeys: debugState.actionSheetMessageContext.chatInputRefKeys.slice(),
+                        chatInputRefCallableKeys: debugState.actionSheetMessageContext.chatInputRefCallableKeys.slice(),
+                        messageHasComponentLikeObject: debugState.actionSheetMessageContext.messageHasComponentLikeObject,
+                        channelHasComponentLikeObject: debugState.actionSheetMessageContext.channelHasComponentLikeObject
+                    } : null,
                     getLastInteraction: getLastInteraction,
                     inspectProps: inspectProps,
                     inspectMountedMessage: inspectMountedMessage
@@ -420,6 +457,7 @@
             argumentCount: 0,
             arguments: []
         };
+        debugState.actionSheetMessageContext = null;
         try {
             if (typeof globalThis !== "undefined") delete globalThis.__MessageEditHistoryDebug;
         } catch (error) { log("Could not reset debug state", error); }
