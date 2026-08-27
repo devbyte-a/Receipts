@@ -37,7 +37,8 @@
         actionSheetMessageContext: null,
         actionSheetStructure: null,
         actionSheetStructureCalls: 0,
-        actionSheetStructureStatus: "waiting"
+        actionSheetStructureStatus: "waiting",
+        messageObjectStructure: null
     };
     let actionSheetLoader;
     let originalOpenLazy;
@@ -377,6 +378,67 @@
         return structure;
     }
 
+    function inspectShallowObject(value) {
+        if (!value || typeof value !== "object") return { keys: [], propertyTypes: {}, functionKeys: [], componentLikeKeys: [], reactLikeKeys: [], objectKeys: {} };
+        const keys = Object.keys(value).slice(0, 50);
+        const propertyTypes = {};
+        const functionKeys = [];
+        const componentLikeKeys = [];
+        const reactLikeKeys = [];
+        const objectKeys = {};
+        keys.forEach(function(key) {
+            const descriptor = Object.getOwnPropertyDescriptor(value, key);
+            if (!descriptor || !Object.prototype.hasOwnProperty.call(descriptor, "value")) return;
+            const property = descriptor.value;
+            const type = typeof property;
+            propertyTypes[key] = type;
+            if (type === "function") functionKeys.push(key);
+            if (property && type === "object") {
+                const nestedKeys = Object.keys(property).slice(0, 30);
+                objectKeys[key] = nestedKeys;
+                const render = Object.getOwnPropertyDescriptor(property, "render");
+                const componentType = Object.getOwnPropertyDescriptor(property, "type");
+                if ((render && typeof render.value === "function") || (componentType && typeof componentType.value === "function")) componentLikeKeys.push(key);
+                if (Object.prototype.hasOwnProperty.call(property, "$$typeof") || (render && Object.prototype.hasOwnProperty.call(render, "value")) || (componentType && Object.prototype.hasOwnProperty.call(componentType, "value"))) reactLikeKeys.push(key);
+            }
+        });
+        return { keys: keys, propertyTypes: propertyTypes, functionKeys: functionKeys, componentLikeKeys: componentLikeKeys, reactLikeKeys: reactLikeKeys, objectKeys: objectKeys };
+    }
+
+    function ownDataValue(value, key) {
+        if (!value || typeof value !== "object") return undefined;
+        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+        return descriptor && Object.prototype.hasOwnProperty.call(descriptor, "value") ? descriptor.value : undefined;
+    }
+
+    function inspectMessageObjectStructure(argument) {
+        const message = ownDataValue(argument, "message");
+        const chatInputRef = ownDataValue(argument, "chatInputRef");
+        const selectedMedia = ownDataValue(argument, "selectedMedia");
+        const user = ownDataValue(argument, "user");
+        const structure = inspectShallowObject(message);
+        const customRenderedContent = ownDataValue(message, "customRenderedContent");
+        const components = ownDataValue(message, "components");
+        const state = ownDataValue(message, "state");
+        structure.customRenderedContent = inspectShallowObject(customRenderedContent);
+        structure.components = {
+            type: typeof components,
+            isArray: Array.isArray(components),
+            keys: components && typeof components === "object" ? Object.keys(components).slice(0, 30) : [],
+            elementKeys: Array.isArray(components) ? components.slice(0, 20).map(function(element) { return element && typeof element === "object" ? Object.keys(element).slice(0, 30) : []; }) : [],
+            hasRenderTypeOrFunction: inspectShallowObject(components).functionKeys.length > 0 || inspectShallowObject(components).componentLikeKeys.length > 0
+        };
+        structure.state = inspectShallowObject(state);
+        structure.contextObjects = {
+            chatInputRef: inspectShallowObject(chatInputRef),
+            selectedMedia: inspectShallowObject(selectedMedia),
+            user: inspectShallowObject(user)
+        };
+        structure.customRenderedContentHasRenderTypeOrFunction = structure.customRenderedContent.functionKeys.length > 0 || structure.customRenderedContent.componentLikeKeys.length > 0;
+        structure.componentsHasRenderTypeOrFunction = structure.components.hasRenderTypeOrFunction;
+        return structure;
+    }
+
     function installActionSheetWrapper() {
         try {
             actionSheetLoader = metro && typeof metro.findByProps === "function" ? metro.findByProps("openLazy") : null;
@@ -393,6 +455,7 @@
                         debugState.actionSheetStructureCalls += 1;
                         debugState.actionSheetStructureStatus = "captured";
                         debugState.actionSheetMessageContext = inspectActionSheetMessageContext(arguments[2]);
+                        if (arguments[1] === "MessageLongPressActionSheet") debugState.messageObjectStructure = inspectMessageObjectStructure(arguments[2]);
                     }
                     catch (error) { log("Could not inspect openLazy message context", error); }
                 }
@@ -475,6 +538,7 @@
                     } : null,
                     actionSheetStructureCalls: debugState.actionSheetStructureCalls,
                     actionSheetStructureStatus: debugState.actionSheetStructureStatus,
+                    messageObjectStructure: debugState.messageObjectStructure,
                     getLastInteraction: getLastInteraction,
                     inspectProps: inspectProps,
                     inspectMountedMessage: inspectMountedMessage
@@ -541,6 +605,7 @@
         debugState.actionSheetStructure = null;
         debugState.actionSheetStructureCalls = 0;
         debugState.actionSheetStructureStatus = "waiting";
+        debugState.messageObjectStructure = null;
         previousActionSheetMessage = undefined;
         previousActionSheetChannel = undefined;
         try {
