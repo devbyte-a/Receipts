@@ -11,6 +11,7 @@
     let dispatcher;
     let loaded = false;
     const debugState = {
+        buildMarker: "openLazy-structure-v2",
         loaded: false,
         rendererDiscoverySucceeded: false,
         candidates: [],
@@ -436,6 +437,7 @@
         try {
             if (typeof globalThis !== "undefined") {
                 globalThis.__MessageEditHistoryDebug = {
+                    buildMarker: debugState.buildMarker,
                     loaded: debugState.loaded,
                     rendererDiscoverySucceeded: debugState.rendererDiscoverySucceeded,
                     candidates: debugState.candidates.slice(),
