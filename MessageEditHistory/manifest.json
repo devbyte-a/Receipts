@@ -1,0 +1,14 @@
+{
+  "name": "Message Edit History",
+  "description": "Automatically shows previous versions of edited Discord messages.",
+  "authors": [
+    {
+      "name": "You"
+    }
+  ],
+  "main": "index.js",
+  "vendetta": {
+    "icon": "HistoryIcon"
+  },
+  "hash": "86ae435d869e0960943a3ff83ff09823057b13c7e4a3c937dcbda4a5f8af9437"
+}
