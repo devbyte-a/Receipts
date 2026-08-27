@@ -35,18 +35,9 @@
             arguments: []
         },
         actionSheetMessageContext: null,
-        actionSheetStructure: {
-            argument0Type: "undefined",
-            argument0Keys: [],
-            argument1Type: "undefined",
-            argument1Value: null,
-            argument0CallableKeys: [],
-            argument0HasComponentLikeObject: false,
-            argument2Keys: [],
-            messageReferenceStable: null,
-            channelReferenceStable: null,
-            called: false
-        }
+        actionSheetStructure: null,
+        actionSheetStructureCalls: 0,
+        actionSheetStructureStatus: "waiting"
     };
     let actionSheetLoader;
     let originalOpenLazy;
@@ -399,6 +390,8 @@
                 if (arguments.length === 3) {
                     try {
                         debugState.actionSheetStructure = inspectActionSheetStructure(arguments);
+                        debugState.actionSheetStructureCalls += 1;
+                        debugState.actionSheetStructureStatus = "captured";
                         debugState.actionSheetMessageContext = inspectActionSheetMessageContext(arguments[2]);
                     }
                     catch (error) { log("Could not inspect openLazy message context", error); }
@@ -468,7 +461,7 @@
                         messageHasComponentLikeObject: debugState.actionSheetMessageContext.messageHasComponentLikeObject,
                         channelHasComponentLikeObject: debugState.actionSheetMessageContext.channelHasComponentLikeObject
                     } : null,
-                    actionSheetStructure: {
+                    actionSheetStructure: debugState.actionSheetStructure ? {
                         argument0Type: debugState.actionSheetStructure.argument0Type,
                         argument0Keys: debugState.actionSheetStructure.argument0Keys.slice(),
                         argument1Type: debugState.actionSheetStructure.argument1Type,
@@ -479,7 +472,9 @@
                         messageReferenceStable: debugState.actionSheetStructure.messageReferenceStable,
                         channelReferenceStable: debugState.actionSheetStructure.channelReferenceStable,
                         called: debugState.actionSheetStructure.called
-                    },
+                    } : null,
+                    actionSheetStructureCalls: debugState.actionSheetStructureCalls,
+                    actionSheetStructureStatus: debugState.actionSheetStructureStatus,
                     getLastInteraction: getLastInteraction,
                     inspectProps: inspectProps,
                     inspectMountedMessage: inspectMountedMessage
@@ -543,18 +538,9 @@
             arguments: []
         };
         debugState.actionSheetMessageContext = null;
-        debugState.actionSheetStructure = {
-            argument0Type: "undefined",
-            argument0Keys: [],
-            argument1Type: "undefined",
-            argument1Value: null,
-            argument0CallableKeys: [],
-            argument0HasComponentLikeObject: false,
-            argument2Keys: [],
-            messageReferenceStable: null,
-            channelReferenceStable: null,
-            called: false
-        };
+        debugState.actionSheetStructure = null;
+        debugState.actionSheetStructureCalls = 0;
+        debugState.actionSheetStructureStatus = "waiting";
         previousActionSheetMessage = undefined;
         previousActionSheetChannel = undefined;
         try {
